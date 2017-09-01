@@ -71,6 +71,7 @@ io.on('connection', function (socket) {
     });
   });
 
+  //Message to Discord
   socket.on('sendMessage', function (messageContent) {
     var messageData = {
       content: messageContent,
@@ -91,9 +92,11 @@ io.on('connection', function (socket) {
         }
       }
     });
+    //Client will get it via Discord Message event
     //io.emit('newMessage', messageData);
   });
 
+  //User closes/times out
   socket.on('disconnect', function () {
     users[socket.id] = users[socket.id] ? users[socket.id] : {
       name: "Unknown",
