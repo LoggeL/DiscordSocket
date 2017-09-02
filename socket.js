@@ -48,7 +48,7 @@ client.on('message', message => {
       timestamp: message.createdAt,
       images: images
     });
-  }
+  } 
 });
 
 
