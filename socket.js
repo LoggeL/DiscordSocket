@@ -20,7 +20,7 @@ client.on('ready', () => {
 });
 
 client.on('message', message => {
-  if (message.channel.id != "301783104371294219") return;
+  if (message.channel.id != config.channel) return;
   var images = [];
   for (i = 0; i < message.embeds.length; i++) {
     if (!message.embeds[i].thumbnail) continue;
@@ -60,7 +60,7 @@ io.on('connection', function (socket) {
     if (!loginData || !loginData.name || !loginData.avatar) return socket.emit("loginFeedback", false);
 
     //Add Auth
-    console.log(loginData.name + " authed");
+    console.log(`${socket.id} (${loginData.name}) authed`);
     socket.emit("loginFeedback", true);
 
     //Update Userlist
@@ -81,7 +81,7 @@ io.on('connection', function (socket) {
         avatar: users[socket.id].avatar
       }
     };
-    client.channels.get("301783104371294219").send({
+    client.channels.get(config.channel).send({
       "embed": {
         "description": messageData.content,
         "color": 11813441,
