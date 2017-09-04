@@ -1,18 +1,70 @@
 /*jshint esversion: 6 */
-var app = require('express')();
-var server = require('http').Server(app);
-var io = require('socket.io')(server);
-var Discord = require('discord.js');
-var config = require('./config.json');
+const app = require('express')();
+const server = require('http').Server(app);
+const io = require('socket.io')(server);
+const Discord = require('discord.js');
+const config = require('./config.json');
+const request = require('request')
 
 const client = new Discord.Client();
-
 var users = {};
+const base_url = "https://discordapp.com/api";
+
+const oauth2settings = {
+  client_id: "354217639335165954",
+  client_secret: "iWKdE5j5tCkhPfM3lgZYfri2N8wY4jG9",
+  redirect_uri: "http://localhost:8080/auth/discord/code",
+  scope: "identify"
+}
 
 server.listen(8080);
 
-app.get('/', function (req, res) {
+app.get('/', (req, res) => {
   res.sendFile(__dirname + '/discord.html');
+});
+
+//Get auth code
+app.get('/auth/discord/authorize', (req, res) => {
+  res.redirect(base_url + '/oauth2/authorize' +
+    '?client_id=' + oauth2settings.client_id +
+    '&scope=' + oauth2settings.scope +
+    '&redirect_uri=' + oauth2settings.redirect_uri +
+    '&response_type=code');
+});
+
+//Catch auth code
+app.get('/auth/discord/code', (req, res) => {
+
+  //Get auth token
+  request.post(base_url + '/oauth2/token' +
+    '?client_id=' + oauth2settings.client_id +
+    '&scope=' + oauth2settings.scope +
+    '&code=' + req.query.code +
+    '&client_secret=' + oauth2settings.client_secret +
+    '&redirect_uri=' + oauth2settings.redirect_uri +
+    '&grant_type=authorization_code',
+    (error, response, body) => {
+      if (error) return console.error(error);
+
+      var tokenData = JSON.parse(body);
+
+      var options = {
+        headers: {
+          "Authorization": `${tokenData.token_type} ${tokenData.access_token}`,
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        url: base_url + '/users/@me'
+      };
+
+      console.log(options);
+
+      request.get(options,
+        (error, response, body) => {
+          if (error) return console.error(error);
+          res.send(body)
+        });
+    });
+
 });
 
 client.on('ready', () => {
@@ -48,9 +100,8 @@ client.on('message', message => {
       timestamp: message.createdAt,
       images: images
     });
-  } 
+  }
 });
-
 
 io.on('connection', function (socket) {
   console.log(socket.id + ' connected');
@@ -96,7 +147,7 @@ io.on('connection', function (socket) {
     //io.emit('newMessage', messageData);
   });
 
-  //User closes/times out
+  //User closes/timeout
   socket.on('disconnect', function () {
     users[socket.id] = users[socket.id] ? users[socket.id] : {
       name: "Unknown",
