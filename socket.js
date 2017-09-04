@@ -56,12 +56,17 @@ app.get('/auth/discord/code', (req, res) => {
         url: base_url + '/users/@me'
       };
 
-      console.log(options);
-
       request.get(options,
         (error, response, body) => {
           if (error) return console.error(error);
-          res.send(body)
+          res.send(`
+          <script>
+          localStorage.setItem("token", "${tokenData.access_token}");
+          window.location.href = "/";     
+          </script>
+          `);
+          var userData = JSON.parse(body);
+          console.log(userData.username + "#" + userData.discriminator + " authenticated via Discord");
         });
     });
 
@@ -108,41 +113,72 @@ io.on('connection', function (socket) {
 
   socket.on('login', function (loginData) {
 
-    if (!loginData || !loginData.name || !loginData.avatar) return socket.emit("loginFeedback", false);
+    if (!loginData || !loginData.token) return socket.emit("loginFeedback", false);
 
-    //Add Auth
-    console.log(`${socket.id} (${loginData.name}) authed`);
-    socket.emit("loginFeedback", true);
+    var options = {
+      headers: {
+        "Authorization": `Bearer ${loginData.token}`,
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      url: base_url + '/users/@me'
+    };
 
-    //Update Userlist
-    users[socket.id] = loginData;
-    io.emit('onlineUser', {
-      name: loginData.name,
-      avatar: loginData.avatar
-    });
+    request.get(options,
+      (error, response, body) => {
+        if (error) return console.error(error);
+        var userData = JSON.parse(body);
+
+        console.log(`${socket.id} (${userData.username}#${userData.discriminator}) authed via Discord`);
+        socket.emit("loginFeedback", true);
+
+        userData.avatar = 'https://cdn.discordapp.com/avatars/' + userData.id + '/' + userData.avatar + '.png?size=512';
+
+        //Update Userlist
+        users[socket.id] = userData;
+        io.emit('onlineUser', {
+          name: userData.username,
+          avatar: userData.avatar
+        });
+      });
   });
 
   //Message to Discord
   socket.on('sendMessage', function (messageContent) {
-    var messageData = {
-      content: messageContent,
-      timestamp: new Date(),
-      author: {
-        name: users[socket.id].name,
-        avatar: users[socket.id].avatar
-      }
+    if (!messageContent || !messageContent.author_token || !messageContent.content) return console.error("Invalid Message");
+    var options = {
+      headers: {
+        "Authorization": `Bearer ${messageContent.author_token}`,
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      url: base_url + '/users/@me'
     };
-    client.channels.get(config.channel).send({
-      "embed": {
-        "description": messageData.content,
-        "color": 11813441,
-        "timestamp": messageData.timestamp,
-        "author": {
-          "name": messageData.author.name,
-          "icon_url": messageData.author.avatar
-        }
-      }
-    });
+
+    request.get(options,
+      (error, response, body) => {
+        if (error) return console.error(error);
+        var userData = JSON.parse(body);
+
+        var messageData = {
+          content: messageContent.content,
+          timestamp: new Date(),
+          author: {
+            name: userData.username + "#" + userData.discriminator,
+            avatar: 'https://cdn.discordapp.com/avatars/' + userData.id + '/' + userData.avatar + '.png?size=512'
+          }
+        };
+
+        client.channels.get(config.channel).send({
+          "embed": {
+            "description": messageData.content,
+            "color": 11813441,
+            "timestamp": messageData.timestamp,
+            "author": {
+              "name": messageData.author.name,
+              "icon_url": messageData.author.avatar
+            }
+          }
+        });
+      });
     //Client will get it via Discord Message event
     //io.emit('newMessage', messageData);
   });

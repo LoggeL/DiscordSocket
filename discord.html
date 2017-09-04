@@ -100,15 +100,22 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-timeago/1.6.1/jquery.timeago.js" type="text/javascript"></script>
   <script>
     var username;
+    var token;
 
     var socket = io.connect(window.location.host);
 
     socket.on('connect', function () {
-      username = prompt("Enter your name");
+      if (typeof (Storage) !== "undefined") {
+        token = localStorage.getItem("token");
+        if (!token) {
+          window.location.href = "/auth/discord/authorize";
+        }
+      } else {
+        alert('No localstrage support! No auth possible!');
+      }
       $("time.timeago_render").timeago();
       socket.emit("login", {
-        name: username,
-        avatar: "http://s3.amazonaws.com/37assets/svn/765-default-avatar.png"
+        token: token,
       });
     });
 
@@ -172,7 +179,10 @@
 
     $("#input_field").on("keypress", function (e) {
       if (e.which === 13) {
-        socket.emit("sendMessage", $(this).val());
+        socket.emit("sendMessage", {
+          content: $(this).val(),
+          author_token: token
+        });
         $(this).val("");
       }
     });
