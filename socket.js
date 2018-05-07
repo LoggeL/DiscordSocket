@@ -11,8 +11,8 @@ var users = {};
 const base_url = "https://discordapp.com/api";
 
 const oauth2settings = {
-  client_id: "354217639335165954",
-  client_secret: "iWKdE5j5tCkhPfM3lgZYfri2N8wY4jG9",
+  client_id: "",
+  client_secret: "",
   redirect_uri: "http://localhost:8080/auth/discord/code",
   scope: "identify"
 }
